@@ -53,33 +53,49 @@
     let html5QrCode;
 
     startButton.addEventListener('click', () => {
-      startButton.style.display = 'none';      // ボタンを非表示
-      readerDiv.style.display = 'block';       // カメラ表示エリアを表示
+      startButton.style.display = 'none';
+      readerDiv.style.display = 'block';
 
       html5QrCode = new Html5Qrcode("reader");
-
       const config = {
         fps: 10,
         qrbox: { width: 250, height: 250 },
-        aspectRatio: 1.77,
-        facingMode: { exact: "environment" } // 外カメラを指定
+        aspectRatio: 1.77
       };
 
-      html5QrCode.start(
-        config.facingMode,
-        config,
-        (decodedText, decodedResult) => {
-          resultElement.textContent = `読み取り結果: ${decodedText}`;
-          html5QrCode.stop().then(() => {
-            readerDiv.style.display = 'none';
-            startButton.style.display = 'inline-block';
-          });
-        },
-        (errorMessage) => {
-          // スキャン失敗時のログ（必要に応じて）
+      // カメラ一覧を取得して外カメラ（背面）を優先
+      Html5Qrcode.getCameras().then(cameras => {
+        if (!cameras || cameras.length === 0) {
+          resultElement.textContent = "カメラが見つかりませんでした。";
+          return;
         }
-      ).catch(err => {
-        resultElement.textContent = `カメラの起動に失敗しました: ${err}`;
+
+        // "environment"（背面）に関係ありそうなカメラを選択
+        let camera = cameras.find(cam => cam.label.toLowerCase().includes("back"))
+                  || cameras.find(cam => cam.label.toLowerCase().includes("environment"))
+                  || cameras[0]; // fallback
+
+        html5QrCode.start(
+          camera.id,
+          config,
+          (decodedText, decodedResult) => {
+            resultElement.textContent = `読み取り結果: ${decodedText}`;
+            html5QrCode.stop().then(() => {
+              readerDiv.style.display = 'none';
+              startButton.style.display = 'inline-block';
+            });
+          },
+          errorMessage => {
+            // スキャン失敗時
+          }
+        ).catch(err => {
+          resultElement.textContent = `カメラの起動に失敗しました: ${err}`;
+          readerDiv.style.display = 'none';
+          startButton.style.display = 'inline-block';
+        });
+      }).catch(err => {
+        resultElement.textContent = `カメラ取得に失敗しました: ${err}`;
+        readerDiv.style.display = 'none';
         startButton.style.display = 'inline-block';
       });
     });
