@@ -5,37 +5,83 @@
   <title>QRコードスキャナー</title>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <style>
-    #reader { width: 300px; margin: auto; }
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background-color: #000;
+      color: white;
+      height: 100vh;
+    }
+    #reader {
+      width: 100%;
+      max-width: 480px;
+      flex-grow: 1;
+    }
+    #result {
+      padding: 1em;
+      font-size: 1.2em;
+    }
+    button {
+      padding: 1em 2em;
+      font-size: 1.2em;
+      margin-top: 1em;
+      background-color: #00aaff;
+      border: none;
+      color: white;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0088cc;
+    }
   </style>
 </head>
 <body>
-  <h1>QRコードをスキャン</h1>
-  <div id="reader"></div>
+  <h1>QRスキャナ</h1>
+  <button id="start-button">QR</button>
+  <div id="reader" style="display:none;"></div>
   <p id="result"></p>
 
   <script>
     const resultElement = document.getElementById('result');
+    const startButton = document.getElementById('start-button');
+    const readerDiv = document.getElementById('reader');
+    let html5QrCode;
 
-    function onScanSuccess(decodedText, decodedResult) {
-      resultElement.textContent = `読み取り結果: ${decodedText}`;
-    }
+    startButton.addEventListener('click', () => {
+      startButton.style.display = 'none';      // ボタンを非表示
+      readerDiv.style.display = 'block';       // カメラ表示エリアを表示
 
-    function onScanFailure(error) {
-      // 読み取り失敗時の処理（必要に応じてログなど）
-    }
+      html5QrCode = new Html5Qrcode("reader");
 
-    const html5QrCode = new Html5Qrcode("reader");
-    const config = { fps: 10, qrbox: 250 };
+      const config = {
+        fps: 10,
+        qrbox: { width: 250, height: 250 },
+        aspectRatio: 1.77,
+        facingMode: { exact: "environment" } // 外カメラを指定
+      };
 
-    Html5Qrcode.getCameras().then(cameras => {
-      if (cameras && cameras.length) {
-        const cameraId = cameras[0].id;
-        html5QrCode.start(cameraId, config, onScanSuccess, onScanFailure);
-      } else {
-        resultElement.textContent = "カメラが見つかりません";
-      }
-    }).catch(err => {
-      resultElement.textContent = `エラー: ${err}`;
+      html5QrCode.start(
+        config.facingMode,
+        config,
+        (decodedText, decodedResult) => {
+          resultElement.textContent = `読み取り結果: ${decodedText}`;
+          html5QrCode.stop().then(() => {
+            readerDiv.style.display = 'none';
+            startButton.style.display = 'inline-block';
+          });
+        },
+        (errorMessage) => {
+          // スキャン失敗時のログ（必要に応じて）
+        }
+      ).catch(err => {
+        resultElement.textContent = `カメラの起動に失敗しました: ${err}`;
+        startButton.style.display = 'inline-block';
+      });
     });
   </script>
 </body>
