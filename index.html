@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>QRコードスキャナー</title>
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  <style>
+    #reader { width: 300px; margin: auto; }
+  </style>
+</head>
+<body>
+  <h1>QRコードをスキャン</h1>
+  <div id="reader"></div>
+  <p id="result"></p>
+
+  <script>
+    const resultElement = document.getElementById('result');
+
+    function onScanSuccess(decodedText, decodedResult) {
+      resultElement.textContent = `読み取り結果: ${decodedText}`;
+    }
+
+    function onScanFailure(error) {
+      // 読み取り失敗時の処理（必要に応じてログなど）
+    }
+
+    const html5QrCode = new Html5Qrcode("reader");
+    const config = { fps: 10, qrbox: 250 };
+
+    Html5Qrcode.getCameras().then(cameras => {
+      if (cameras && cameras.length) {
+        const cameraId = cameras[0].id;
+        html5QrCode.start(cameraId, config, onScanSuccess, onScanFailure);
+      } else {
+        resultElement.textContent = "カメラが見つかりません";
+      }
+    }).catch(err => {
+      resultElement.textContent = `エラー: ${err}`;
+    });
+  </script>
+</body>
+</html>
