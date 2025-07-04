@@ -4,80 +4,85 @@
   <meta charset="UTF-8">
   <title>QRコードスキャナー</title>
   <script src="https://unpkg.com/html5-qrcode"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    body {
+    html, body {
       margin: 0;
       padding: 0;
+      height: 100%;
+      background: #000;
+      color: #fff;
       font-family: sans-serif;
+      overflow: hidden;
+    }
+
+    #app {
       display: flex;
       flex-direction: column;
       align-items: center;
-      background-color: #000;
-      color: white;
-      height: 100vh;
+      height: 100%;
     }
+
     #reader {
-      width: 100%;
-      max-width: 480px;
-      flex-grow: 1;
+      width: 100vw;
+      height: calc(100vh - 120px);
+      max-height: 100%;
     }
+
     #result {
-      padding: 1em;
       font-size: 1.2em;
+      padding: 10px;
+      text-align: center;
     }
-    button {
-      padding: 1em 2em;
+
+    #start-button {
+      width: 80%;
+      max-width: 300px;
+      padding: 1em;
+      margin: 10px auto;
       font-size: 1.2em;
-      margin-top: 1em;
       background-color: #00aaff;
-      border: none;
       color: white;
+      border: none;
       border-radius: 8px;
       cursor: pointer;
     }
-    button:hover {
+
+    #start-button:hover {
       background-color: #0088cc;
     }
   </style>
 </head>
 <body>
-  <h1>QRスキャナ</h1>
-  <button id="start-button">QR</button>
-  <div id="reader" style="display:none;"></div>
-  <p id="result"></p>
+  <div id="app">
+    <button id="start-button">QR</button>
+    <div id="reader" style="display: none;"></div>
+    <div id="result"></div>
+  </div>
 
   <script>
-    const resultElement = document.getElementById('result');
     const startButton = document.getElementById('start-button');
     const readerDiv = document.getElementById('reader');
+    const resultElement = document.getElementById('result');
     let html5QrCode;
 
-    startButton.addEventListener('click', () => {
+    startButton.addEventListener('click', async () => {
       startButton.style.display = 'none';
+      resultElement.textContent = '';
       readerDiv.style.display = 'block';
 
       html5QrCode = new Html5Qrcode("reader");
-      const config = {
-        fps: 30,
-        qrbox: { width: 300, height: 300 },
-        aspectRatio: 2
-      };
 
-      // カメラ一覧を取得して外カメラ（背面）を優先
-      Html5Qrcode.getCameras().then(cameras => {
-        if (!cameras || cameras.length === 0) {
-          resultElement.textContent = "カメラが見つかりませんでした。";
-          return;
-        }
+      const qrboxSize = Math.min(window.innerWidth, window.innerHeight) * 0.6;
 
-        // "environment"（背面）に関係ありそうなカメラを選択
-        let camera = cameras.find(cam => cam.label.toLowerCase().includes("back"))
-                  || cameras.find(cam => cam.label.toLowerCase().includes("environment"))
-                  || cameras[0]; // fallback
-
-        html5QrCode.start(
-          camera.id,
-          config,
+      try {
+        await html5QrCode.start(
+          { facingMode: "environment" },
+          {
+            fps: 10,
+            qrbox: { width: qrboxSize, height: qrboxSize }, // 正方形ボックス
+            aspectRatio: window.innerWidth / window.innerHeight
+          },
           (decodedText, decodedResult) => {
             resultElement.textContent = `読み取り結果: ${decodedText}`;
             html5QrCode.stop().then(() => {
@@ -86,18 +91,14 @@
             });
           },
           errorMessage => {
-            // スキャン失敗時
+            // 読み取り失敗時のログ（不要なら空）
           }
-        ).catch(err => {
-          resultElement.textContent = `カメラの起動に失敗しました: ${err}`;
-          readerDiv.style.display = 'none';
-          startButton.style.display = 'inline-block';
-        });
-      }).catch(err => {
-        resultElement.textContent = `カメラ取得に失敗しました: ${err}`;
+        );
+      } catch (err) {
+        resultElement.textContent = `カメラ起動エラー: ${err}`;
         readerDiv.style.display = 'none';
         startButton.style.display = 'inline-block';
-      });
+      }
     });
   </script>
 </body>
