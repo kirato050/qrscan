@@ -2,14 +2,14 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>地図＋QRコードスキャナー</title>
+  <title>QRコード＋現在地マップ</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <!-- Leaflet（地図） -->
+  <!-- Leaflet -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-  <!-- QRスキャナー -->
+  <!-- QRコード -->
   <script src="https://unpkg.com/html5-qrcode"></script>
 
   <style>
@@ -23,7 +23,7 @@
     }
 
     #map {
-      height: calc(100vh - 120px);
+      height: 100vh;
       width: 100%;
     }
 
@@ -32,82 +32,92 @@
       width: 100%;
       height: 300px;
       background-color: #111;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 9999;
     }
 
-    #controls {
+    #result {
+      position: fixed;
+      bottom: 10px;
+      left: 0;
+      width: 100%;
       text-align: center;
-      padding: 10px;
-      background: #000;
+      font-size: 1em;
+      color: #fff;
+      background: rgba(0, 0, 0, 0.5);
+      padding: 6px;
+      z-index: 9000;
     }
 
-    #start-button {
-      padding: 10px 20px;
+    #qr-button {
+      position: fixed;
+      bottom: 80px;
+      right: 20px;
+      z-index: 10000;
+      padding: 16px 20px;
       font-size: 1.2em;
       background-color: #00aaff;
       color: white;
       border: none;
-      border-radius: 8px;
+      border-radius: 50%;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.4);
       cursor: pointer;
-    }
-
-    #result {
-      text-align: center;
-      padding: 8px;
-      font-size: 1em;
     }
 
     a {
       color: #66f;
-      word-break: break-all;
+      word-break: break-word;
     }
   </style>
 </head>
 <body>
   <div id="map"></div>
 
+  <!-- QR読み取り画面 -->
   <div id="reader"></div>
 
-  <div id="controls">
-    <button id="start-button">QR</button>
-    <div id="result"></div>
-  </div>
+  <!-- QR起動ボタン -->
+  <button id="qr-button">QR</button>
+
+  <!-- 結果表示 -->
+  <div id="result"></div>
 
   <script>
     let map;
     let marker;
     let html5QrCode;
 
+    // 地図初期化
     function initMap(lat, lng) {
       map = L.map('map').setView([lat, lng], 15);
-
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap contributors'
       }).addTo(map);
-
       marker = L.marker([lat, lng]).addTo(map).bindPopup('現在地').openPopup();
     }
 
-    function setMapLocation(lat, lng, label = "QR地点") {
-      map.setView([lat, lng], 16);
-      marker.setLatLng([lat, lng]).setPopupContent(label).openPopup();
-    }
-
+    // 現在地取得
     function showCurrentLocation() {
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
           (pos) => initMap(pos.coords.latitude, pos.coords.longitude),
-          () => initMap(35.6812, 139.7671) // fallback: 東京駅
+          () => initMap(35.6812, 139.7671) // 東京駅 fallback
         );
       } else {
         initMap(35.6812, 139.7671);
       }
     }
 
-    // ページ読み込み時に地図表示
-    window.onload = showCurrentLocation;
+    // 地図ジャンプ
+    function setMapLocation(lat, lng, label = "QR地点") {
+      map.setView([lat, lng], 16);
+      marker.setLatLng([lat, lng]).setPopupContent(label).openPopup();
+    }
 
-    // QRスキャン処理
-    document.getElementById("start-button").addEventListener("click", () => {
+    // QRボタン処理
+    document.getElementById("qr-button").addEventListener("click", () => {
       const reader = document.getElementById("reader");
       const result = document.getElementById("result");
       reader.style.display = "block";
@@ -129,7 +139,7 @@
             reader.style.display = "none";
           });
 
-          // geo:lat,lng → 地図に反映
+          // geo:lat,lng
           if (decodedText.startsWith("geo:")) {
             const coords = decodedText.slice(4).split(",");
             const lat = parseFloat(coords[0]);
@@ -140,16 +150,19 @@
           else if (decodedText.startsWith("http://") || decodedText.startsWith("https://")) {
             window.location.href = decodedText;
           }
-          // その他は画面に表示
+          // それ以外の文字列
           else {
-            result.innerHTML += `<br>（URLまたは位置情報ではありません）`;
+            result.innerHTML += `<br>（URLや位置情報ではありません）`;
           }
         },
         (error) => {
-          // 読み取り失敗時は無視（またはログ出力）
+          // 失敗時は何もしない
         }
       );
     });
+
+    // ページ読み込み時に現在地表示
+    window.onload = showCurrentLocation;
   </script>
 </body>
 </html>
