@@ -1,10 +1,17 @@
 <!DOCTYPE html>
-<html>
+<html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>QRコードスキャナー</title>
-  <script src="https://unpkg.com/html5-qrcode"></script>
+  <title>QRスキャン＋地図（無料）</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- Leaflet（地図表示） -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- QRコード読み取り -->
+  <script src="https://unpkg.com/html5-qrcode"></script>
+
   <style>
     html, body {
       margin: 0;
@@ -13,34 +20,18 @@
       background: #000;
       color: #fff;
       font-family: sans-serif;
-      overflow: hidden;
     }
 
     #app {
       display: flex;
       flex-direction: column;
-      align-items: center;
-      height: 100%;
-    }
-
-    #reader {
-      width: 100vw;
-      height: calc(100vh - 120px);
-      max-height: 100%;
-    }
-
-    #result {
-      font-size: 1.2em;
-      padding: 10px;
-      text-align: center;
+      height: 100vh;
     }
 
     #start-button {
-      width: 80%;
-      max-width: 300px;
       padding: 1em;
-      margin: 10px auto;
       font-size: 1.2em;
+      margin: 10px auto;
       background-color: #00aaff;
       color: white;
       border: none;
@@ -48,58 +39,107 @@
       cursor: pointer;
     }
 
-    #start-button:hover {
-      background-color: #0088cc;
+    #reader {
+      display: none;
+      width: 100vw;
+      height: 300px;
+    }
+
+    #result {
+      padding: 10px;
+      font-size: 1.2em;
+      text-align: center;
+    }
+
+    #map {
+      flex-grow: 1;
+      width: 100%;
     }
   </style>
 </head>
 <body>
   <div id="app">
     <button id="start-button">QR</button>
-    <div id="reader" style="display: none;"></div>
+    <div id="reader"></div>
     <div id="result"></div>
+    <div id="map"></div>
   </div>
 
   <script>
-    const startButton = document.getElementById('start-button');
-    const readerDiv = document.getElementById('reader');
-    const resultElement = document.getElementById('result');
+    let map;
+    let marker;
     let html5QrCode;
 
-    startButton.addEventListener('click', async () => {
-      startButton.style.display = 'none';
-      resultElement.textContent = '';
-      readerDiv.style.display = 'block';
+    function initMapWithLocation() {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            const lat = pos.coords.latitude;
+            const lng = pos.coords.longitude;
+            createMap(lat, lng);
+          },
+          (err) => {
+            console.warn("位置情報が取得できません。東京駅を表示します。");
+            createMap(35.6812, 139.7671); // fallback: 東京駅
+          }
+        );
+      } else {
+        alert("この端末では位置情報が利用できません。");
+        createMap(35.6812, 139.7671);
+      }
+    }
+
+    function createMap(lat, lng) {
+      map = L.map('map').setView([lat, lng], 15);
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+      }).addTo(map);
+
+      marker = L.marker([lat, lng]).addTo(map)
+        .bindPopup('現在地').openPopup();
+    }
+
+    document.getElementById("start-button").addEventListener("click", () => {
+      const reader = document.getElementById("reader");
+      const result = document.getElementById("result");
+      reader.style.display = "block";
+      result.textContent = "";
+      document.getElementById("start-button").style.display = "none";
 
       html5QrCode = new Html5Qrcode("reader");
 
-      const qrboxSize = Math.min(window.innerWidth, window.innerHeight) * 0.6;
+      const qrboxSize = Math.min(window.innerWidth, 300);
+      html5QrCode.start(
+        { facingMode: "environment" },
+        {
+          fps: 10,
+          qrbox: { width: qrboxSize, height: qrboxSize },
+          aspectRatio: window.innerWidth / 300
+        },
+        (decodedText) => {
+          result.textContent = `読み取り: ${decodedText}`;
+          html5QrCode.stop();
 
-      try {
-        await html5QrCode.start(
-          { facingMode: "environment" },
-          {
-            fps: 10,
-            qrbox: { width: qrboxSize, height: qrboxSize }, // 正方形ボックス
-            aspectRatio: window.innerWidth / window.innerHeight
-          },
-          (decodedText, decodedResult) => {
-            resultElement.textContent = `読み取り結果: ${decodedText}`;
-            html5QrCode.stop().then(() => {
-              readerDiv.style.display = 'none';
-              startButton.style.display = 'inline-block';
-            });
-          },
-          errorMessage => {
-            // 読み取り失敗時のログ（不要なら空）
+          // geo:緯度,経度 の場合は地図移動
+          if (decodedText.startsWith("geo:")) {
+            const coords = decodedText.slice(4).split(",");
+            const lat = parseFloat(coords[0]);
+            const lng = parseFloat(coords[1]);
+
+            const pos = [lat, lng];
+            map.setView(pos, 16);
+            marker.setLatLng(pos).setPopupContent("QR地点").openPopup();
           }
-        );
-      } catch (err) {
-        resultElement.textContent = `カメラ起動エラー: ${err}`;
-        readerDiv.style.display = 'none';
-        startButton.style.display = 'inline-block';
-      }
+        },
+        (err) => {
+          // スキャン失敗時（無視してOK）
+        }
+      );
     });
+
+    // ページ読み込み時に地図を初期化
+    window.onload = initMapWithLocation;
   </script>
 </body>
 </html>
