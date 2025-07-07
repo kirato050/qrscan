@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>QR＋マップ（ウィンドウ表示）</title>
+  <title>QR＋マップ（正方形読み取り）</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
   <!-- Leaflet -->
@@ -27,13 +27,13 @@
       width: 100%;
     }
 
-    /* QRリーダーウィンドウ */
+    /* QRカメラのウィンドウ */
     #reader-container {
       position: fixed;
       bottom: 20px;
       right: 20px;
       width: 300px;
-      height: 240px;
+      height: 300px;
       background-color: #000;
       border: 2px solid #00aaff;
       border-radius: 10px;
@@ -49,8 +49,8 @@
 
     #close-btn {
       position: absolute;
-      top: 2px;
-      right: 4px;
+      top: 4px;
+      right: 6px;
       background: #00aaff;
       border: none;
       color: white;
@@ -98,7 +98,7 @@
 <body>
   <div id="map"></div>
 
-  <!-- QRウィンドウ -->
+  <!-- QRカメラウィンドウ -->
   <div id="reader-container">
     <button id="close-btn">✕</button>
     <div id="reader"></div>
@@ -132,20 +132,20 @@
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
           (pos) => initMap(pos.coords.latitude, pos.coords.longitude),
-          () => initMap(35.6812, 139.7671) // fallback
+          () => initMap(35.6812, 139.7671) // fallback: 東京駅
         );
       } else {
         initMap(35.6812, 139.7671);
       }
     }
 
-    // 地図にマーカー表示
+    // 地図ジャンプ
     function setMapLocation(lat, lng, label = "QR地点") {
       map.setView([lat, lng], 16);
       marker.setLatLng([lat, lng]).setPopupContent(label).openPopup();
     }
 
-    // QR開始
+    // QR起動
     document.getElementById("qr-button").addEventListener("click", () => {
       const container = document.getElementById("reader-container");
       const result = document.getElementById("result");
@@ -153,38 +153,43 @@
       result.textContent = "";
 
       html5QrCode = new Html5Qrcode("reader");
-      const qrboxSize = 200;
 
-      html5QrCode.start(
-        { facingMode: "environment" },
-        {
-          fps: 10,
-          qrbox: { width: qrboxSize, height: qrboxSize }
-        },
-        (decodedText) => {
-          result.innerHTML = `読み取り: <br>${decodedText}`;
-          html5QrCode.stop().then(() => {
-            container.style.display = "none";
-          });
+      html5QrCode
+        .start(
+          { facingMode: "environment" },
+          {
+            fps: 10,
+            qrbox: { width: 200, height: 200 }  // ← 正方形に設定！
+          },
+          (decodedText) => {
+            result.innerHTML = `読み取り: <br>${decodedText}`;
+            html5QrCode.stop().then(() => {
+              container.style.display = "none";
+            });
 
-          if (decodedText.startsWith("geo:")) {
-            const coords = decodedText.slice(4).split(",");
-            const lat = parseFloat(coords[0]);
-            const lng = parseFloat(coords[1]);
-            setMapLocation(lat, lng, "QR地点");
-          } else if (decodedText.startsWith("http://") || decodedText.startsWith("https://")) {
-            window.location.href = decodedText;
-          } else {
-            result.innerHTML += "<br>（URLや位置情報ではありません）";
+            if (decodedText.startsWith("geo:")) {
+              const coords = decodedText.slice(4).split(",");
+              const lat = parseFloat(coords[0]);
+              const lng = parseFloat(coords[1]);
+              setMapLocation(lat, lng, "QR地点");
+            } else if (decodedText.startsWith("http://") || decodedText.startsWith("https://")) {
+              window.location.href = decodedText;
+            } else {
+              result.innerHTML += "<br>（URLや位置情報ではありません）";
+            }
+          },
+          (error) => {
+            // 読み取り失敗時は無視
           }
-        },
-        (error) => {
-          // 読み取り失敗は無視
-        }
-      );
+        )
+        .catch((err) => {
+          console.error("カメラ起動エラー:", err);
+          alert("カメラの起動に失敗しました。ブラウザの設定をご確認ください。");
+          container.style.display = "none";
+        });
     });
 
-    // 閉じるボタン
+    // カメラ閉じるボタン
     document.getElementById("close-btn").addEventListener("click", () => {
       const container = document.getElementById("reader-container");
       if (html5QrCode) {
@@ -196,7 +201,7 @@
       }
     });
 
-    // 初期表示
+    // 初期化
     window.onload = showCurrentLocation;
   </script>
 </body>
