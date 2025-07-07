@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>QR＋マップ（正方形読み取り）</title>
+  <title>柏崎スタンプラリー</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
   <!-- Leaflet -->
@@ -22,12 +22,44 @@
       color: #fff;
     }
 
+    /* ① スタート画面 */
+    #start-screen {
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      background: #fff;
+      color: #000;
+    }
+
+    #start-screen h1 {
+      font-size: 2em;
+      margin-bottom: 20px;
+    }
+
+    #start-button {
+      padding: 16px 32px;
+      font-size: 1.2em;
+      background-color: #005577;
+      color: white;
+      border: none;
+      border-radius: 40px;
+      cursor: pointer;
+    }
+
+    /* ② 地図＋QR画面 */
+    #main-screen {
+      display: none;
+      height: 100vh;
+      width: 100%;
+    }
+
     #map {
       height: 100vh;
       width: 100%;
     }
 
-    /* QRカメラのウィンドウ */
     #reader-container {
       position: fixed;
       bottom: 20px;
@@ -88,32 +120,40 @@
       z-index: 9000;
       word-break: break-word;
     }
-
-    a {
-      color: #66f;
-      word-break: break-word;
-    }
   </style>
 </head>
 <body>
-  <div id="map"></div>
 
-  <!-- QRカメラウィンドウ -->
-  <div id="reader-container">
-    <button id="close-btn">✕</button>
-    <div id="reader"></div>
+  <!-- ① スタート画面 -->
+  <div id="start-screen">
+    <h1>柏崎スタンプラリー</h1>
+    <button id="start-button">スタート</button>
   </div>
 
-  <!-- QR起動ボタン -->
-  <button id="qr-button">QR</button>
+  <!-- ② 地図＋QR画面 -->
+  <div id="main-screen">
+    <div id="map"></div>
 
-  <!-- 読み取り結果 -->
-  <div id="result"></div>
+    <div id="reader-container">
+      <button id="close-btn">✕</button>
+      <div id="reader"></div>
+    </div>
+
+    <button id="qr-button">QR</button>
+    <div id="result"></div>
+  </div>
 
   <script>
     let map;
     let marker;
     let html5QrCode;
+
+    // スタートボタン押下 → 地図画面へ
+    document.getElementById("start-button").addEventListener("click", () => {
+      document.getElementById("start-screen").style.display = "none";
+      document.getElementById("main-screen").style.display = "block";
+      showCurrentLocation();
+    });
 
     // 地図初期化
     function initMap(lat, lng) {
@@ -132,7 +172,7 @@
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
           (pos) => initMap(pos.coords.latitude, pos.coords.longitude),
-          () => initMap(35.6812, 139.7671) // fallback: 東京駅
+          () => initMap(35.6812, 139.7671) // fallback
         );
       } else {
         initMap(35.6812, 139.7671);
@@ -159,7 +199,7 @@
           { facingMode: "environment" },
           {
             fps: 10,
-            qrbox: { width: 200, height: 200 }  // ← 正方形に設定！
+            qrbox: { width: 200, height: 200 }
           },
           (decodedText) => {
             result.innerHTML = `読み取り: <br>${decodedText}`;
@@ -179,17 +219,17 @@
             }
           },
           (error) => {
-            // 読み取り失敗時は無視
+            // 読み取り失敗は無視
           }
         )
         .catch((err) => {
-          console.error("カメラ起動エラー:", err);
-          alert("カメラの起動に失敗しました。ブラウザの設定をご確認ください。");
+          console.error("QRカメラ起動失敗:", err);
+          alert("カメラの起動に失敗しました。権限やブラウザ設定をご確認ください。");
           container.style.display = "none";
         });
     });
 
-    // カメラ閉じるボタン
+    // カメラを閉じる
     document.getElementById("close-btn").addEventListener("click", () => {
       const container = document.getElementById("reader-container");
       if (html5QrCode) {
@@ -200,9 +240,6 @@
         container.style.display = "none";
       }
     });
-
-    // 初期化
-    window.onload = showCurrentLocation;
   </script>
 </body>
 </html>
